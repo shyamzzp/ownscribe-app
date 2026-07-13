@@ -97,6 +97,11 @@ struct RecordView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            if !recorder.videoStatus.isEmpty {
+                Label(recorder.videoStatus, systemImage: "video")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(14)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
@@ -130,9 +135,35 @@ struct RecordView: View {
                     Toggle("Speaker diarization (needs HF token)", isOn: $recorder.diarize)
                 }
             }
+            GridRow {
+                Text("Video").gridColumnAlignment(.trailing)
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Also record a window / display", isOn: $recorder.videoEnabled)
+                    if recorder.videoEnabled {
+                        HStack {
+                            Picker("", selection: $recorder.selectedSourceID) {
+                                Text("Select a source…").tag(String?.none)
+                                ForEach(recorder.videoSources) { src in
+                                    Text(src.name).tag(String?.some(src.id))
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 300)
+                            Button {
+                                recorder.refreshVideoSources()
+                            } label: { Image(systemName: "arrow.clockwise") }
+                        }
+                        Text("Video (H.264 .mp4) is saved as recording.mp4 in the meeting folder.")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
         .padding(14)
         .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
+        .onChange(of: recorder.videoEnabled) { _, on in
+            if on && recorder.videoSources.isEmpty { recorder.refreshVideoSources() }
+        }
     }
 
     private var controls: some View {

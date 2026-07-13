@@ -46,6 +46,12 @@ struct MeetingDetail: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
+                if meeting.hasVideo {
+                    Button {
+                        NSWorkspace.shared.open(meeting.videoURL)
+                    } label: { Label("Play video", systemImage: "play.rectangle") }
+                    .buttonStyle(.link)
+                }
                 Button("Reveal in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting([meeting.url])
                 }.buttonStyle(.link)

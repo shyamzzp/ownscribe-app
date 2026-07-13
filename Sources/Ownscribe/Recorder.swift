@@ -22,6 +22,15 @@ final class Recorder: ObservableObject {
     @Published var summarize: Bool = true
     @Published var device: String = ""
 
+    // Video capture (ScreenCaptureKit) — optional, ownscribe is audio-only.
+    @Published var videoEnabled: Bool = false
+    @Published var videoSources: [CaptureSource] = []
+    @Published var selectedSourceID: String?
+    @Published var videoStatus: String = ""
+
+    private let video = VideoRecorder()
+    private var tempVideoURL: URL?
+
     private var process: Process?
     private var timer: Timer?
     private var startDate: Date?
@@ -83,6 +92,38 @@ final class Recorder: ObservableObject {
                 self.elapsed = Date().timeIntervalSince(s)
             }
         }
+
+        // Start optional window/display video capture in parallel with audio.
+        if videoEnabled, let sid = selectedSourceID,
+           let source = videoSources.first(where: { $0.id == sid }) {
+            let tmp = FileManager.default.temporaryDirectory
+                .appendingPathComponent("ownscribe-video-\(UUID().uuidString).mp4")
+            tempVideoURL = tmp
+            videoStatus = "Recording video…"
+            Task {
+                do {
+                    try await video.start(source: source, to: tmp)
+                } catch {
+                    await MainActor.run {
+                        self.videoStatus = "Video failed: \(error.localizedDescription)"
+                        self.tempVideoURL = nil
+                    }
+                }
+            }
+        } else {
+            videoStatus = ""
+        }
+    }
+
+    /// Fetch shareable windows/displays for the source picker.
+    func refreshVideoSources() {
+        Task {
+            let sources = await VideoRecorder.availableSources()
+            await MainActor.run {
+                self.videoSources = sources
+                if self.selectedSourceID == nil { self.selectedSourceID = sources.first?.id }
+            }
+        }
     }
 
     /// Stop recording. SIGINT -> CLI transcribes/summarizes, then exits.
@@ -92,6 +133,20 @@ final class Recorder: ObservableObject {
         phase = .processing
         statusLine = "Transcribing… (first run downloads models — this can take a while)"
         process?.interrupt() // SIGINT
+
+        // Stop video capture (if any); keep the finalized file for finish() to move.
+        if videoEnabled, tempVideoURL != nil {
+            videoStatus = "Finalizing video…"
+            Task {
+                let url = await video.stop()
+                await MainActor.run {
+                    self.tempVideoURL = url
+                    self.videoStatus = url == nil
+                        ? (self.video.lastError.map { "Video error: \($0)" } ?? "No video captured.")
+                        : "Video ready."
+                }
+            }
+        }
     }
 
     /// Hard-cancel everything (used when quitting).
@@ -100,6 +155,9 @@ final class Recorder: ObservableObject {
         process?.interrupt()
         process?.terminate()
         process = nil
+        if videoEnabled, tempVideoURL != nil {
+            Task { _ = await video.stop() }
+        }
         if isBusy { phase = .idle }
     }
 
@@ -128,6 +186,19 @@ final class Recorder: ObservableObject {
 
         // Newest meeting directory is the result of this run.
         lastMeetingDir = MeetingStore.newestMeetingDir()
+
+        // Move the captured video into the meeting directory as recording.mp4.
+        if let src = tempVideoURL, let dir = lastMeetingDir {
+            let dest = dir.appendingPathComponent("recording.mp4")
+            try? FileManager.default.removeItem(at: dest)
+            do {
+                try FileManager.default.moveItem(at: src, to: dest)
+                videoStatus = "Video saved to meeting folder."
+            } catch {
+                videoStatus = "Video kept at \(src.path) (move failed)."
+            }
+            tempVideoURL = nil
+        }
 
         if status == 0 {
             phase = .done

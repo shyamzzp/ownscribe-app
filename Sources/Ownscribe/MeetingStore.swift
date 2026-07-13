@@ -10,9 +10,11 @@ struct Meeting: Identifiable, Hashable {
     var transcriptURL: URL { url.appendingPathComponent("transcript.md") }
     var summaryURL: URL { url.appendingPathComponent("summary.md") }
     var recordingURL: URL { url.appendingPathComponent("recording.wav") }
+    var videoURL: URL { url.appendingPathComponent("recording.mp4") }
 
     var hasSummary: Bool { FileManager.default.fileExists(atPath: summaryURL.path) }
     var hasTranscript: Bool { FileManager.default.fileExists(atPath: transcriptURL.path) }
+    var hasVideo: Bool { FileManager.default.fileExists(atPath: videoURL.path) }
 }
 
 @MainActor

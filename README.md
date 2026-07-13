@@ -14,8 +14,9 @@ and summarization (local LLM) still happen entirely on your machine.
 - **Ask** across all your meeting notes (`ownscribe ask`).
 - **Settings**: edit the `ownscribe` TOML config in-app.
 
-> Note: `ownscribe` is **audio-only**. Recording *video* of a window is a planned
-> addition (ScreenCaptureKit) tracked in this repo — see Roadmap.
+- **Video** (optional): capture a selected window or display via ScreenCaptureKit
+  while recording. Saved as `recording.mp4` in the meeting folder, playable from
+  the History tab. `ownscribe` itself is audio-only — this is added by the app.
 
 ## Requirements
 
@@ -44,10 +45,19 @@ On first recording, macOS will prompt for **Screen Recording** and (if enabled)
 
 ## Roadmap
 
-- [ ] Optional window/screen **video** capture via ScreenCaptureKit, saved
+- [x] Optional window/screen **video** capture via ScreenCaptureKit, saved
       alongside the audio recording.
+- [ ] Mux captured video + audio into a single file.
 - [ ] Device picker populated from `ownscribe devices`.
 - [ ] Live elapsed-audio level meter while recording.
+
+## Notes
+
+- Built as an SPM executable bundled into `Ownscribe.app`. On macOS 26 with
+  Swift 6.2+, SwiftUI SPM executables can hard-crash in `isCurrentExecutor`
+  (ambiguous main-actor executor). The bundle sets
+  `SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=legacy` via `LSEnvironment`
+  in Info.plist to avoid it.
 
 ## License
 

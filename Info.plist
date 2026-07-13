@@ -20,6 +20,14 @@
     <string>14.0</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <!-- Swift 6.2+ hard-crashes in isCurrentExecutor when the main-actor
+         executor is ambiguous (DispatchMainExecutor vs CFMainExecutor) for
+         SwiftUI apps built as SPM executables. Revert to legacy check. -->
+    <key>LSEnvironment</key>
+    <dict>
+        <key>SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE</key>
+        <string>legacy</string>
+    </dict>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>LSApplicationCategoryType</key>
