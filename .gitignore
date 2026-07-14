@@ -1,6 +1,7 @@
-.build/
-Ownscribe.app/
-*.xcodeproj
-*.xcworkspace
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+dist/
+build/
 .DS_Store
-.swiftpm/

@@ -1,64 +1,88 @@
-# Ownscribe.app
+# ownscribe (fork)
 
-A native macOS SwiftUI front-end for [`ownscribe`](https://github.com/paberr/ownscribe) —
-fully local meeting transcription and summarization. This app is a GUI wrapper: it
-shells out to the installed `ownscribe` CLI, so all recording, transcription (WhisperX),
-and summarization (local LLM) still happen entirely on your machine.
+Fully local meeting transcription and summarization CLI — a fork of
+[paberr/ownscribe](https://github.com/paberr/ownscribe) that adds:
 
-## Features
+- **Live transcription** — streaming, real-time transcript as the meeting runs
+  (chunked faster-whisper), instead of only batch-after-stop.
+- **Folder-grounded question suggestions** — attach a folder of reference docs;
+  during the call it retrieves the relevant passages plus the live transcript and
+  the local LLM suggests questions to ask next.
+- **Vocab priming** — the same folder primes Whisper (`initial_prompt` + hotwords)
+  so names/domain terms transcribe correctly.
 
-- **Record** system audio (optionally + microphone) with a one-click Start/Stop.
-  Stopping sends `SIGINT`, which the CLI catches to run transcription → summarization.
-- **History** browser: lists past meetings from `~/ownscribe`, renders summary and
-  transcript markdown side by side.
-- **Ask** across all your meeting notes (`ownscribe ask`).
-- **Settings**: edit the `ownscribe` TOML config in-app.
+Everything runs on-device (WhisperX / faster-whisper + local phi-4-mini). No data
+leaves the machine.
 
-- **Video** (optional): capture a selected window or display via ScreenCaptureKit
-  while recording. Saved as `recording.mp4` in the meeting folder, playable from
-  the History tab. `ownscribe` itself is audio-only — this is added by the app.
-
-## Requirements
-
-- macOS 14.2+
-- The `ownscribe` CLI installed and on `~/.local/bin`:
-  ```bash
-  uv tool install 'ownscribe[all]'
-  ```
-- Swift 5.9+ / Xcode command line tools (to build).
-
-## Build
+## Install
 
 ```bash
-bash bundle.sh release      # produces Ownscribe.app (ad-hoc signed)
-open Ownscribe.app
+# editable dev install into a uv-managed tool env
+uv tool install --force --editable .
+# or into a venv
+uv pip install -e '.[all]'
 ```
 
-For a plain debug run without bundling:
+Requires macOS 14.2+, Python 3.12+, FFmpeg (`brew install ffmpeg`).
+
+## Usage
+
+### Live transcription
 
 ```bash
-swift run
+ownscribe live                         # transcribe default mic, live
+ownscribe live --device 2              # pick input (see: ownscribe devices)
+ownscribe live --context-folder ./docs # ground question suggestions + prime vocab
+ownscribe live --no-questions          # transcript only
+ownscribe live --model small --json    # bigger model, JSONL output for tooling
 ```
 
-On first recording, macOS will prompt for **Screen Recording** and (if enabled)
-**Microphone** permission — grant them to `Ownscribe.app`.
+Live mode captures an **input device**. Your mic works out of the box. To
+transcribe another party (e.g. a call), select a loopback input — e.g.
+"Microsoft Teams Audio", BlackHole, or an Aggregate Device. List them with
+`ownscribe devices`. Stop with `Ctrl+C`; a transcript (and summary, if enabled)
+is written to `~/ownscribe/<timestamp>/`.
 
-## Roadmap
+**Question suggestions** print every `--question-interval` seconds (default 45):
 
-- [x] Optional window/screen **video** capture via ScreenCaptureKit, saved
-      alongside the audio recording.
-- [ ] Mux captured video + audio into a single file.
-- [ ] Device picker populated from `ownscribe devices`.
-- [ ] Live elapsed-audio level meter while recording.
+```
+  ? Suggested questions:
+    • What's the timeline for the Azure AI demo now that IT review is pending?
+    • Who owns the SOW AI phase-one UI updates?
+```
 
-## Notes
+### Batch (original behavior)
 
-- Built as an SPM executable bundled into `Ownscribe.app`. On macOS 26 with
-  Swift 6.2+, SwiftUI SPM executables can hard-crash in `isCurrentExecutor`
-  (ambiguous main-actor executor). The bundle sets
-  `SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=legacy` via `LSEnvironment`
-  in Info.plist to avoid it.
+```bash
+ownscribe                    # record system audio -> transcribe -> summarize
+ownscribe ask "what did we decide about X?"
+ownscribe summarize file.md
+ownscribe devices
+```
+
+## New CLI surface
+
+| Command / flag | Purpose |
+| --- | --- |
+| `ownscribe live` | Streaming transcription |
+| `--context-folder DIR` | Reference docs for questions + vocab priming |
+| `--question-interval N` | Cadence of suggestions (0 disables) |
+| `--no-questions` | Transcript only |
+| `--json` | Emit JSONL events (`{"type":"transcript"...}`) |
+
+## Layout
+
+```
+ownscribe/
+  cli.py            entry point (adds `live`)
+  live.py           streaming transcription + question loop   [new]
+  context.py        folder retrieval + Whisper priming        [new]
+  pipeline.py       batch record/transcribe/summarize
+  transcription/    WhisperX
+  summarization/    local (llama.cpp) / ollama / openai
+  search.py         ask across notes
+```
 
 ## License
 
-MIT.
+MIT (fork; upstream © paberr).
