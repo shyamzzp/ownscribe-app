@@ -137,11 +137,16 @@ def ask(ctx: click.Context, question: str, since: str | None, limit: int | None)
 @click.option("--model", default=None, help="Whisper model size (tiny, base, small, medium, large-v3).")
 @click.option("--language", default=None, help="Language code for transcription (e.g. en, de, fr).")
 @click.option("--json", "json_mode", is_flag=True, help="Emit JSONL events instead of formatted text.")
+@click.option("--video-screen", "video_screen", default=None, type=int,
+              help="Also record this display (0,1,2…) to recording-screen.mp4 via ffmpeg.")
+@click.option("--video-camera", "video_camera", default=None, type=int,
+              help="Also record this camera (0=first) to recording-camera.mp4 via ffmpeg.")
 @click.pass_context
 def live(
     ctx: click.Context, context_folder: str | None, device: str | None,
     chunk_seconds: float, question_interval: float, no_questions: bool,
     model: str | None, language: str | None, json_mode: bool,
+    video_screen: int | None, video_camera: int | None,
 ) -> None:
     """Live transcription with folder-grounded question suggestions."""
     config = ctx.obj["config"]
@@ -160,6 +165,8 @@ def live(
         question_interval=question_interval,
         suggest_questions=not no_questions and question_interval > 0,
         json_mode=json_mode,
+        video_screen=video_screen,
+        video_camera=video_camera,
     )
 
 

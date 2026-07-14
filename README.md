@@ -35,7 +35,15 @@ ownscribe live --device 2              # pick input (see: ownscribe devices)
 ownscribe live --context-folder ./docs # ground question suggestions + prime vocab
 ownscribe live --no-questions          # transcript only
 ownscribe live --model small --json    # bigger model, JSONL output for tooling
+ownscribe live --video-screen 0        # also record display 0 -> recording-screen.mp4
+ownscribe live --video-camera 0        # also record webcam -> recording-camera.mp4
+ownscribe live --video-screen 1 --video-camera 0   # both
 ```
+
+**Video** capture uses ffmpeg/avfoundation and records a whole **display**
+and/or a **camera** (not a single window — that needs ScreenCaptureKit). Files
+land in the meeting folder next to the transcript. Display capture needs Screen
+Recording permission; camera capture needs Camera permission for your terminal.
 
 Live mode captures an **input device**. Your mic works out of the box. To
 transcribe another party (e.g. a call), select a loopback input — e.g.
@@ -69,6 +77,8 @@ ownscribe devices
 | `--question-interval N` | Cadence of suggestions (0 disables) |
 | `--no-questions` | Transcript only |
 | `--json` | Emit JSONL events (`{"type":"transcript"...}`) |
+| `--video-screen N` | Also record display N to recording-screen.mp4 (ffmpeg) |
+| `--video-camera N` | Also record camera N to recording-camera.mp4 (ffmpeg) |
 
 ## Layout
 
@@ -77,6 +87,7 @@ ownscribe/
   cli.py            entry point (adds `live`)
   live.py           streaming transcription + question loop   [new]
   context.py        folder retrieval + Whisper priming        [new]
+  video.py          optional display/camera capture (ffmpeg)  [new]
   pipeline.py       batch record/transcribe/summarize
   transcription/    WhisperX
   summarization/    local (llama.cpp) / ollama / openai

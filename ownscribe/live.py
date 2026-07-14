@@ -148,6 +148,8 @@ def run_live(
     question_interval: float = 45.0,
     suggest_questions: bool = True,
     json_mode: bool = False,
+    video_screen: int | None = None,
+    video_camera: int | None = None,
 ) -> None:
     """Run live transcription until interrupted (Ctrl+C)."""
     try:
@@ -179,6 +181,15 @@ def run_live(
     out_dir = base / datetime.now().strftime("%Y-%m-%d_%H%M")
     out_dir.mkdir(parents=True, exist_ok=True)
     transcript_path = out_dir / "transcript.md"
+
+    # Optional video capture (display and/or camera) into the meeting dir.
+    video = None
+    if video_screen is not None or video_camera is not None:
+        from ownscribe.video import VideoCapture
+
+        video = VideoCapture()
+        for msg in video.start(out_dir, video_screen, video_camera):
+            _emit("info", msg, json_mode=json_mode)
 
     # Resolve device index.
     dev_index = None
@@ -254,6 +265,12 @@ def run_live(
         if worker is not None:
             worker.stop()
             worker.join(timeout=5)
+        if video is not None:
+            for msg in video.stop():
+                _emit("info", msg, json_mode=json_mode)
+            for out in video.outputs:
+                if out.exists():
+                    _emit("info", f"Video saved to {out}", json_mode=json_mode)
 
     transcript_path.write_text(_render_transcript(transcript_lines))
     _emit("info", f"\nTranscript saved to {transcript_path}", json_mode=json_mode)
